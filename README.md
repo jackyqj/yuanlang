@@ -85,6 +85,7 @@ HTTP surface (dev):
 - `GET /api/v1/trace/cycles`
 - `GET/PUT/POST/DELETE /api/v1/recipes` · `POST /api/v1/recipes/{id}/apply`
 - `GET /api/v1/mes/outbox` · `POST /api/v1/mes/outbox/{id}/retry` · `GET /api/v1/mes/sync-status`
+- `GET /api/v1/spc/chart` · `GET /api/v1/spc/hourly`
 
 Set `Mes:Adapter=fail` to simulate outage and produce dead letters.
 
