@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package press.v1;
+
+option csharp_namespace = "Press.Contracts.V1";
+
+import "google/protobuf/timestamp.proto";
+
+// Shared primitives used across runtime, recipe, and trace APIs.
+
+enum UnitForce {
+  UNIT_FORCE_UNSPECIFIED = 0;
+  UNIT_FORCE_NEWTON = 1;
+}
+
+enum UnitLength {
+  UNIT_LENGTH_UNSPECIFIED = 0;
+  UNIT_LENGTH_MILLIMETER = 1;
+}
+
+enum UnitSpeed {
+  UNIT_SPEED_UNSPECIFIED = 0;
+  UNIT_SPEED_MM_PER_S = 1;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_name = 2;
+  string session_id = 3;
+}
+
+message RequestMeta {
+  string request_id = 1;
+  OperatorContext operator = 2;
+  google.protobuf.Timestamp client_time = 3;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+  int32 total_size = 2;
+}

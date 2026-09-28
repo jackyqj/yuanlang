@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package press.v1;
+
+option csharp_namespace = "Press.Contracts.V1";
+
+import "press/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// Machine runtime: commands, state snapshot, live curve stream.
+
+service RuntimeService {
+  rpc GetSnapshot(GetSnapshotRequest) returns (MachineSnapshot);
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (stream MachineEvent);
+  rpc LoadJob(LoadJobRequest) returns (LoadJobResponse);
+  rpc StartCycle(StartCycleRequest) returns (StartCycleResponse);
+  rpc StopCycle(StopCycleRequest) returns (StopCycleResponse);
+  rpc Abort(AbortRequest) returns (AbortResponse);
+  rpc ResetFault(ResetFaultRequest) returns (ResetFaultResponse);
+  rpc AcknowledgeAlarm(AcknowledgeAlarmRequest) returns (AcknowledgeAlarmResponse);
+  rpc Jog(JogRequest) returns (JogResponse);
+  rpc Home(HomeRequest) returns (HomeResponse);
+}
+
+enum MachineState {
+  MACHINE_STATE_UNSPECIFIED = 0;
+  MACHINE_STATE_OFFLINE = 1;
+  MACHINE_STATE_IDLE = 2;
+  MACHINE_STATE_LOADING = 3;
+  MACHINE_STATE_READY = 4;
+  MACHINE_STATE_APPROACHING = 5;
+  MACHINE_STATE_PRESSING = 6;
+  MACHINE_STATE_HOLDING = 7;
+  MACHINE_STATE_RETRACTING = 8;
+  MACHINE_STATE_COMPLETED = 9;
+  MACHINE_STATE_FAULTED = 10;
+  MACHINE_STATE_ESTOP = 11;
+}
+
+enum CycleResult {
+  CYCLE_RESULT_UNSPECIFIED = 0;
+  CYCLE_RESULT_PASS = 1;
+  CYCLE_RESULT_FAIL = 2;
+  CYCLE_RESULT_ABORTED = 3;
+}
+
+message SafetyStatus {
+  bool e_stop = 1;
+  bool light_curtain = 2;
+  bool door_closed = 3;
+  bool start_enabled = 4;
+}
+
+message AxisStatus {
+  double position_mm = 1;
+  double speed_mm_s = 2;
+  bool enabled = 3;
+  bool at_home = 4;
+  bool soft_limit = 5;
+  bool hard_limit = 6;
+}
+
+message LiveMetrics {
+  double force_n = 1;
+  double position_mm = 2;
+  double speed_mm_s = 3;
+  double max_force_n = 4;
+  double max_position_mm = 5;
+  double cycle_elapsed_s = 6;
+}
+
+message Alarm {
+  string alarm_id = 1;
+  string code = 2;
+  string message = 3;
+  google.protobuf.Timestamp raised_at = 4;
+  bool acknowledged = 5;
+  string severity = 6; // info|warning|error|critical
+}
+
+message ActiveJob {
+  string product_id = 1;
+  string product_name = 2;
+  string recipe_version_id = 3;
+  string connector_name = 4;
+  string pcb_barcode = 5;
+  string connector_barcode = 6;
+  string upper_tool_barcode = 7;
+  string lower_tool_barcode = 8;
+}
+
+message MachineSnapshot {
+  MachineState state = 1;
+  ActiveJob job = 2;
+  LiveMetrics metrics = 3;
+  AxisStatus axis = 4;
+  SafetyStatus safety = 5;
+  repeated Alarm active_alarms = 6;
+  string software_version = 7;
+  string device_identity = 8;
+  google.protobuf.Timestamp server_time = 9;
+}
+
+message GetSnapshotRequest {
+  RequestMeta meta = 1;
+}
+
+message SubscribeEventsRequest {
+  RequestMeta meta = 1;
+  bool include_display_curve = 2; // downsampled for UI
+  bool include_raw_curve = 3;     // usually false for HMI
+}
+
+message CurveSample {
+  double t_s = 1;
+  double force_n = 2;
+  double position_mm = 3;
+}
+
+message CurveSampleBatch {
+  string cycle_id = 1;
+  repeated CurveSample samples = 2;
+  bool display_stream = 3;
+}
+
+message CycleCompleted {
+  string cycle_id = 1;
+  CycleResult result = 2;
+  double end_force_n = 3;
+  double end_position_mm = 4;
+  double cycle_time_s = 5;
+  repeated string alarm_codes = 6;
+  string curve_id = 7;
+}
+
+message MachineEvent {
+  google.protobuf.Timestamp time = 1;
+  oneof payload {
+    MachineSnapshot snapshot = 2;
+    MachineState state = 3;
+    LiveMetrics metrics = 4;
+    CurveSampleBatch curve_batch = 5;
+    Alarm alarm_raised = 6;
+    Alarm alarm_cleared = 7;
+    CycleCompleted cycle_completed = 8;
+  }
+}
+
+message LoadJobRequest {
+  RequestMeta meta = 1;
+  string product_id = 2;
+  string recipe_version_id = 3; // empty = active published
+  string pcb_barcode = 4;
+  string connector_barcode = 5;
+}
+
+message LoadJobResponse {
+  bool ok = 1;
+  MachineSnapshot snapshot = 2;
+  ErrorDetail error = 3;
+}
+
+message StartCycleRequest {
+  RequestMeta meta = 1;
+  bool manual = 2;
+}
+
+message StartCycleResponse {
+  bool ok = 1;
+  string cycle_id = 2;
+  ErrorDetail error = 3;
+}
+
+message StopCycleRequest {
+  RequestMeta meta = 1;
+}
+
+message StopCycleResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}
+
+message AbortRequest {
+  RequestMeta meta = 1;
+  string reason = 2;
+}
+
+message AbortResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}
+
+message ResetFaultRequest {
+  RequestMeta meta = 1;
+}
+
+message ResetFaultResponse {
+  bool ok = 1;
+  MachineSnapshot snapshot = 2;
+  ErrorDetail error = 3;
+}
+
+message AcknowledgeAlarmRequest {
+  RequestMeta meta = 1;
+  string alarm_id = 2;
+}
+
+message AcknowledgeAlarmResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}
+
+message JogRequest {
+  RequestMeta meta = 1;
+  double delta_mm = 2;
+  double speed_mm_s = 3;
+}
+
+message JogResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}
+
+message HomeRequest {
+  RequestMeta meta = 1;
+  bool hardware_home = 2; // false = work origin
+}
+
+message HomeResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}

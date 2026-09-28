@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package press.v1;
+
+option csharp_namespace = "Press.Contracts.V1";
+
+import "press/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// Master data + versioned recipes / custom press programs.
+
+service RecipeService {
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  rpc UpsertProduct(UpsertProductRequest) returns (UpsertProductResponse);
+  rpc GetRecipe(GetRecipeRequest) returns (GetRecipeResponse);
+  rpc PublishRecipeVersion(PublishRecipeVersionRequest) returns (PublishRecipeVersionResponse);
+  rpc ResolveByBarcode(ResolveByBarcodeRequest) returns (ResolveByBarcodeResponse);
+  rpc ImportBundle(ImportBundleRequest) returns (ImportBundleResponse);
+  rpc ExportBundle(ExportBundleRequest) returns (ExportBundleResponse);
+
+  rpc GetProgram(GetProgramRequest) returns (GetProgramResponse);
+  rpc SaveProgram(SaveProgramRequest) returns (SaveProgramResponse);
+  rpc ValidateProgram(ValidateProgramRequest) returns (ValidateProgramResponse);
+}
+
+message ProductSummary {
+  string product_id = 1;
+  string product_name = 2;
+  string product_barcode = 3;
+  google.protobuf.Timestamp modified_at = 4;
+  string modified_by = 5;
+  string active_recipe_version_id = 6;
+}
+
+message ListProductsRequest {
+  RequestMeta meta = 1;
+  string barcode_query = 2;
+  PageRequest page = 3;
+}
+
+message ListProductsResponse {
+  repeated ProductSummary products = 1;
+  PageResponse page = 2;
+}
+
+message UpsertProductRequest {
+  RequestMeta meta = 1;
+  ProductSummary product = 2;
+}
+
+message UpsertProductResponse {
+  bool ok = 1;
+  ProductSummary product = 2;
+  ErrorDetail error = 3;
+}
+
+message ConnectorSpec {
+  string connector_id = 1;
+  string name = 2;
+  string barcode = 3;
+  double body_thickness_mm = 4;
+  double place_height_mm = 5;
+  double shell_height_mm = 6;
+  double press_fit_clearance_mm = 7;
+  int32 pin_count = 8;
+  double pin_max_force_n = 9;
+  double pin_min_force_n = 10;
+  string upper_tool_id = 11;
+  string speed_profile_id = 12;
+  string remark = 13;
+}
+
+message ToolSpec {
+  string tool_id = 1;
+  string name = 2;
+  string barcode = 3;
+  string kind = 4; // upper | lower
+}
+
+message SpeedProfile {
+  string profile_id = 1;
+  string name = 2;
+  double v1_mm_s = 3;
+  double v2_mm_s = 4;
+  double v3_mm_s = 5;
+  double v4_mm_s = 6;
+  double v5_mm_s = 7;
+  double up_percent = 8;
+  double down_percent = 9;
+  double hold_delay_s = 10;
+}
+
+message PvfsParams {
+  double percent = 1;
+  double start_pos_mm = 2;
+  double distance_mm = 3;
+  bool auto_judge_sampling_location = 4;
+}
+
+message ForceGradientParams {
+  double stop_angle_deg = 1;
+  bool enabled = 2;
+}
+
+message EnvelopeParams {
+  string envelope_id = 1;
+  double positive_tol_n = 2;
+  double negative_tol_n = 3;
+  double filter = 4;
+  double start_pos_mm = 5;
+  double end_pos_mm = 6;
+}
+
+message PressWindows {
+  double contact_force_n = 1;
+  double max_force_n = 2;
+  double min_force_n = 3;
+  double tool_position_mm = 4;
+  double end_position_mm = 5;
+  double check_tol_mm = 6;
+  double end_pos_tol_mm = 7;
+  double work_origin_mm = 8;
+}
+
+message RecipeVersion {
+  string recipe_version_id = 1;
+  string product_id = 2;
+  int32 version_number = 3;
+  bool immutable = 4;
+  google.protobuf.Timestamp published_at = 5;
+  string published_by = 6;
+  ConnectorSpec connector = 7;
+  ToolSpec upper_tool = 8;
+  ToolSpec lower_tool = 9;
+  SpeedProfile speed = 10;
+  PressWindows windows = 11;
+  PvfsParams pvfs = 12;
+  ForceGradientParams gradient = 13;
+  EnvelopeParams envelope = 14;
+  string program_id = 15;
+  string algorithm_version = 16;
+}
+
+message GetRecipeRequest {
+  RequestMeta meta = 1;
+  string product_id = 2;
+  string recipe_version_id = 3; // empty = active
+}
+
+message GetRecipeResponse {
+  RecipeVersion recipe = 1;
+  ErrorDetail error = 2;
+}
+
+message PublishRecipeVersionRequest {
+  RequestMeta meta = 1;
+  RecipeVersion draft = 2;
+}
+
+message PublishRecipeVersionResponse {
+  bool ok = 1;
+  RecipeVersion recipe = 2;
+  ErrorDetail error = 3;
+}
+
+message ResolveByBarcodeRequest {
+  RequestMeta meta = 1;
+  string barcode = 2;
+}
+
+message ResolveByBarcodeResponse {
+  ProductSummary product = 1;
+  RecipeVersion recipe = 2;
+  ErrorDetail error = 3;
+}
+
+message ImportBundleRequest {
+  RequestMeta meta = 1;
+  bytes bundle_zip = 2;
+}
+
+message ImportBundleResponse {
+  bool ok = 1;
+  repeated string imported_ids = 2;
+  ErrorDetail error = 3;
+}
+
+message ExportBundleRequest {
+  RequestMeta meta = 1;
+  repeated string product_ids = 2;
+  bool export_all = 3;
+}
+
+message ExportBundleResponse {
+  bytes bundle_zip = 1;
+  ErrorDetail error = 2;
+}
+
+// Customized control program (step table).
+
+enum PositionTrigger {
+  POSITION_TRIGGER_UNSPECIFIED = 0;
+  POSITION_TRIGGER_NEXT = 1;
+  POSITION_TRIGGER_GOTO = 2;
+  POSITION_TRIGGER_ERROR = 3;
+  POSITION_TRIGGER_COMPLETE = 4;
+  POSITION_TRIGGER_DELAY = 5;
+}
+
+enum ForceTrigger {
+  FORCE_TRIGGER_UNSPECIFIED = 0;
+  FORCE_TRIGGER_NEXT = 1;
+  FORCE_TRIGGER_ERROR = 2;
+  FORCE_TRIGGER_COMPLETE = 3;
+  FORCE_TRIGGER_DELAY = 4;
+}
+
+message ProgramStep {
+  int32 no = 1;
+  string position_condition = 2; // e.g. "Tool+0.8", "End-0.3"
+  PositionTrigger position_trigger = 3;
+  int32 position_goto_step = 4;
+  int32 position_error_code = 5;
+  string force_condition = 6; // e.g. "300", "MinPress", "Deg 89.9"
+  ForceTrigger force_trigger = 7;
+  int32 force_error_code = 8;
+  double speed_mm_s = 9;
+  string remark = 10;
+}
+
+message ProgramErrorMessage {
+  int32 code = 1;
+  string message = 2;
+}
+
+message PressProgram {
+  string program_id = 1;
+  string name = 2;
+  string file_version = 3;
+  repeated ProgramStep steps = 4;
+  repeated ProgramErrorMessage errors = 5;
+  double sample_start_mm = 6;
+  double sample_distance_mm = 7;
+}
+
+message GetProgramRequest {
+  RequestMeta meta = 1;
+  string program_id = 2;
+}
+
+message GetProgramResponse {
+  PressProgram program = 1;
+  ErrorDetail error = 2;
+}
+
+message SaveProgramRequest {
+  RequestMeta meta = 1;
+  PressProgram program = 2;
+}
+
+message SaveProgramResponse {
+  bool ok = 1;
+  PressProgram program = 2;
+  ErrorDetail error = 3;
+}
+
+message ValidateProgramRequest {
+  RequestMeta meta = 1;
+  PressProgram program = 2;
+}
+
+message ValidateProgramResponse {
+  bool ok = 1;
+  repeated ErrorDetail issues = 2;
+}

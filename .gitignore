@@ -1,0 +1,16 @@
+.DS_Store
+.~*
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.vs/
+*.user
+data/curves/**
+!data/curves/.gitkeep
+data/logs/**
+!data/logs/.gitkeep
+data/db/**
+!data/db/.gitkeep
+data/mes/**
+!data/mes/.gitkeep

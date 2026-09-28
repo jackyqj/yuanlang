@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: Press MES Outbox & Integration API
+  version: 1.0.0
+  description: >
+    Outbound cycle results and sync status for MES / file / serial adapters.
+    The Control Service owns the Outbox; adapters only deliver and ACK.
+servers:
+  - url: http://127.0.0.1:5080
+    description: Local press-service HTTP surface (same machine as HMI)
+paths:
+  /v1/mes/outbox:
+    get:
+      summary: List outbox messages
+      operationId: listOutbox
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, sending, acked, dead]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Outbox page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OutboxMessage"
+  /v1/mes/outbox/{messageId}/retry:
+    post:
+      summary: Re-queue a dead-letter message
+      operationId: retryOutboxMessage
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Re-queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboxMessage"
+  /v1/mes/sync-status:
+    get:
+      summary: Adapter sync health
+      operationId: getSyncStatus
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatus"
+  /v1/mes/ingest-result:
+    post:
+      summary: Internal — enqueue a sealed cycle result (service-local)
+      operationId: enqueueCycleResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CycleResultPayload"
+      responses:
+        "202":
+          description: Accepted into outbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboxMessage"
+components:
+  schemas:
+    OutboxMessage:
+      type: object
+      required: [messageId, status, createdAt, payload]
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, sending, acked, dead]
+        createdAt:
+          type: string
+          format: date-time
+        lastAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        retryCount:
+          type: integer
+        lastError:
+          type: string
+          nullable: true
+        payload:
+          $ref: "#/components/schemas/CycleResultPayload"
+    SyncStatus:
+      type: object
+      properties:
+        adapter:
+          type: string
+          description: rest | csv | dll | access | rs485 | rs232
+        online:
+          type: boolean
+        pendingCount:
+          type: integer
+        deadCount:
+          type: integer
+        lastAckAt:
+          type: string
+          format: date-time
+          nullable: true
+    CycleResultPayload:
+      type: object
+      description: Aligns with legacy Access schema + version/curve refs
+      required:
+        - idempotencyKey
+        - productName
+        - productSN
+        - time
+        - result
+      properties:
+        idempotencyKey:
+          type: string
+          description: Stable key = cycleId
+        productName:
+          type: string
+        productSN:
+          type: string
+          description: PCB barcode
+        connectBar:
+          type: string
+        toolBar:
+          type: string
+        bottomBar:
+          type: string
+        connectName:
+          type: string
+        toolName:
+          type: string
+        bottomName:
+          type: string
+        linkerName:
+          type: string
+        pressMax:
+          type: number
+        pressSet:
+          type: number
+        pressRange:
+          type: number
+        position:
+          type: number
+        operator:
+          type: string
+        time:
+          type: string
+          format: date-time
+        saveDrwName:
+          type: string
+          description: Curve file path or curveId
+        notes:
+          type: string
+        recipeVersionId:
+          type: string
+        softwareVersion:
+          type: string
+        result:
+          type: string
+          enum: [pass, fail, aborted]
+        alarmCodes:
+          type: array
+          items:
+            type: string

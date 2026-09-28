@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package press.v1;
+
+option csharp_namespace = "Press.Contracts.V1";
+
+import "press/v1/common.proto";
+import "press/v1/runtime.proto";
+import "google/protobuf/timestamp.proto";
+
+// Traceability, work logs, SPC queries, curve open.
+
+service TraceService {
+  rpc QueryCycles(QueryCyclesRequest) returns (QueryCyclesResponse);
+  rpc GetCycle(GetCycleRequest) returns (GetCycleResponse);
+  rpc OpenCurve(OpenCurveRequest) returns (OpenCurveResponse);
+  rpc ExportCyclesExcel(ExportCyclesExcelRequest) returns (ExportCyclesExcelResponse);
+  rpc QueryWorkLog(QueryWorkLogRequest) returns (QueryWorkLogResponse);
+  rpc GetSpcChart(GetSpcChartRequest) returns (GetSpcChartResponse);
+  rpc GetHourlyThroughput(GetHourlyThroughputRequest) returns (GetHourlyThroughputResponse);
+}
+
+message CycleRecord {
+  string cycle_id = 1;
+  string product_name = 2;
+  string product_sn = 3;
+  string connect_bar = 4;
+  string tool_bar = 5;
+  string bottom_bar = 6;
+  string connect_name = 7;
+  string tool_name = 8;
+  string bottom_name = 9;
+  string linker_name = 10;
+  double press_max_n = 11;
+  double press_set_n = 12;
+  double press_range = 13;
+  double position_mm = 14;
+  string operator_name = 15;
+  google.protobuf.Timestamp time = 16;
+  string curve_id = 17;
+  string recipe_version_id = 18;
+  string software_version = 19;
+  CycleResult result = 20;
+  string notes = 21;
+}
+
+message QueryCyclesRequest {
+  RequestMeta meta = 1;
+  string pcb_barcode = 2;
+  string upper_tool_barcode = 3;
+  string lower_tool_barcode = 4;
+  string connector_barcode = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  bool errors_only = 8;
+  PageRequest page = 9;
+}
+
+message QueryCyclesResponse {
+  repeated CycleRecord cycles = 1;
+  PageResponse page = 2;
+}
+
+message GetCycleRequest {
+  RequestMeta meta = 1;
+  string cycle_id = 2;
+}
+
+message GetCycleResponse {
+  CycleRecord cycle = 1;
+  ErrorDetail error = 2;
+}
+
+message OpenCurveRequest {
+  RequestMeta meta = 1;
+  string curve_id = 2;
+  bool raw = 3;
+}
+
+message OpenCurveResponse {
+  string cycle_id = 1;
+  repeated CurveSample samples = 2;
+  ErrorDetail error = 3;
+}
+
+message ExportCyclesExcelRequest {
+  RequestMeta meta = 1;
+  QueryCyclesRequest filter = 2;
+  bool include_fisheye_pressure = 3;
+}
+
+message ExportCyclesExcelResponse {
+  bytes xlsx = 1;
+  ErrorDetail error = 2;
+}
+
+message WorkLogEntry {
+  google.protobuf.Timestamp time = 1;
+  string category = 2; // operation|alarm|param|production
+  string message = 3;
+  string operator_name = 4;
+}
+
+message QueryWorkLogRequest {
+  RequestMeta meta = 1;
+  google.protobuf.Timestamp day = 2;
+  string keyword = 3;
+  PageRequest page = 4;
+}
+
+message QueryWorkLogResponse {
+  repeated WorkLogEntry entries = 1;
+  PageResponse page = 2;
+}
+
+message SpcPoint {
+  int32 index = 1;
+  double value = 2;
+  google.protobuf.Timestamp time = 3;
+}
+
+message GetSpcChartRequest {
+  RequestMeta meta = 1;
+  string product_name = 2;
+  string connector_name = 3;
+  string metric = 4; // end_force|max_force|position
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+}
+
+message GetSpcChartResponse {
+  repeated SpcPoint points = 1;
+  double mean = 2;
+  double ucl = 3;
+  double cl = 4;
+  double lcl = 5;
+  double stddev = 6;
+  double cpk = 7;
+  int32 sample_count = 8;
+}
+
+message HourlyBucket {
+  string hour_label = 1;
+  int32 pcs = 2;
+}
+
+message GetHourlyThroughputRequest {
+  RequestMeta meta = 1;
+  google.protobuf.Timestamp day = 2;
+}
+
+message GetHourlyThroughputResponse {
+  repeated HourlyBucket buckets = 1;
+}

@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package press.v1;
+
+option csharp_namespace = "Press.Contracts.V1";
+
+import "press/v1/common.proto";
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpsertUser(UpsertUserRequest) returns (UpsertUserResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+}
+
+message LoginRequest {
+  RequestMeta meta = 1;
+  string username = 2;
+  string password = 3;
+  string employee_card_id = 4;
+}
+
+message LoginResponse {
+  bool ok = 1;
+  string session_id = 2;
+  UserProfile user = 3;
+  ErrorDetail error = 4;
+}
+
+message LogoutRequest {
+  RequestMeta meta = 1;
+}
+
+message LogoutResponse {
+  bool ok = 1;
+}
+
+message ChangePasswordRequest {
+  RequestMeta meta = 1;
+  string username = 2;
+  string old_password = 3;
+  string new_password = 4;
+}
+
+message ChangePasswordResponse {
+  bool ok = 1;
+  ErrorDetail error = 2;
+}
+
+message Permission {
+  string key = 1; // e.g. recipe.edit, system.settings, user.admin, tools.use, database.use
+}
+
+message UserProfile {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  repeated Permission permissions = 4;
+  bool employee_card_enabled = 5;
+}
+
+message ListUsersRequest {
+  RequestMeta meta = 1;
+}
+
+message ListUsersResponse {
+  repeated UserProfile users = 1;
+}
+
+message UpsertUserRequest {
+  RequestMeta meta = 1;
+  UserProfile user = 2;
+  string password = 3; // only when creating / resetting
+}
+
+message UpsertUserResponse {
+  bool ok = 1;
+  UserProfile user = 2;
+  ErrorDetail error = 3;
+}
+
+message CheckPermissionRequest {
+  RequestMeta meta = 1;
+  string permission_key = 2;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+}

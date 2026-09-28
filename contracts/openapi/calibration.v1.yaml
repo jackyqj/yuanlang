@@ -1,0 +1,115 @@
+openapi: 3.0.3
+info:
+  title: Press Calibration HTTP API
+  version: 1.0.0
+  description: Auto force calibration against an external instrument (COM).
+servers:
+  - url: http://127.0.0.1:5080
+paths:
+  /v1/calibration/session:
+    post:
+      summary: Start calibration session
+      operationId: startCalibration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalibrationSessionRequest"
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalibrationSession"
+  /v1/calibration/session/{sessionId}/run:
+    post:
+      summary: Run automatic multi-point calibration
+      operationId: runCalibration
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Result + certificate draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalibrationResult"
+  /v1/calibration/session/{sessionId}/apply:
+    post:
+      summary: Apply compensation coefficients to machine
+      operationId: applyCompensation
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Applied
+components:
+  schemas:
+    CalibrationSessionRequest:
+      type: object
+      properties:
+        comPort:
+          type: string
+          example: COM2
+        baudRate:
+          type: integer
+          example: 19200
+        startForceN:
+          type: number
+          example: 50
+        endForceN:
+          type: number
+          example: 50000
+        stepForceN:
+          type: number
+          example: 5
+        speedMmS:
+          type: number
+          example: 0.001
+        operator:
+          type: string
+    CalibrationSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum: [created, running, completed, failed]
+    CalibrationPoint:
+      type: object
+      properties:
+        displacementMm:
+          type: number
+        machineForceN:
+          type: number
+        instrumentForceN:
+          type: number
+    CalibrationResult:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalibrationPoint"
+        slope:
+          type: number
+        intercept:
+          type: number
+        fullScaleErrorPercent:
+          type: number
+        certificatePath:
+          type: string
+          nullable: true

@@ -1,0 +1,8 @@
+version: v2
+# Uncomment plugins when ready to generate:
+# plugins:
+#   - local: protoc-gen-csharp
+#     out: ../services/press-service/src/Contracts
+#   - local: protoc-gen-es
+#     out: ../apps/press-hmi/src/gen
+#     opt: target=ts
